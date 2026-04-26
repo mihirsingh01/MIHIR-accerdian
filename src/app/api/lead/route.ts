@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import connectToDatabase from "@/lib/db";
+import Lead from "@/models/Lead";
 
 const leadSchema = z.object({
   name: z.string().min(2),
@@ -13,21 +15,25 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedData = leadSchema.parse(body);
 
-    // Here you would typically save the data to a database (e.g., Prisma, MongoDB)
-    // or send it to an external CRM (Salesforce, HubSpot) or email service (Resend).
-    console.log("New Lead Received:", validatedData);
+    // Connect to the database
+    await connectToDatabase();
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Save the lead to MongoDB
+    const newLead = await Lead.create(validatedData);
+
+    console.log("New Lead Saved to MongoDB:", newLead);
 
     return NextResponse.json(
-      { message: "Lead captured successfully", data: validatedData },
+      { message: "Lead captured successfully", data: newLead },
       { status: 200 }
     );
   } catch (error) {
+    console.error("Database Error:", error);
+    
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Validation failed" }, { status: 400 });
     }
+    
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
